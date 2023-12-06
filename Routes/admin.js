@@ -85,17 +85,25 @@ router.get("/", eAdmin, function (req, res) {
     });
 });
 
-router.post("/homeadm/delete", eAdmin, function (req, res) {
-  Admin.remove({ _id: req.body.id })
-    .then(() => {
-      req.flash("success_msg", "Admin deletado");
-      res.redirect("/admin/");
-    })
-    .catch((err) => {
-      req.flash("error_msg", "este usuario não existe");
-      res.redirect("/admin/");
-      console.log(err);
-    });
+router.post("/homeadm/delete", eAdmin, async function (req, res) {
+  const adminId = req.body.id;
+  console.log(adminId);
+  try {
+    // Use deleteOne em vez de remove
+    const result = await Admin.deleteOne({ _id: adminId });
+
+    if (result.deletedCount === 0) {
+      req.flash("error_msg", "Este usuário não existe");
+    } else {
+      req.flash("success_msg", "Admin deletado com sucesso");
+    }
+
+    res.redirect("/admin/");
+  } catch (err) {
+    console.error(err);
+    req.flash("error_msg", "Erro ao excluir admin");
+    res.redirect("/admin/");
+  }
 });
 
 router.post("/remover-nao-confirmados", async (req, res) => {
