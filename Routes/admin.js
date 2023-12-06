@@ -8,20 +8,21 @@ const ptBR = require("date-fns/locale/pt-BR");
 const Admin = mongoose.model("admins");
 const crypto = require("crypto");
 
-router.get("/exportar-admins", eAdmin, async (req, res) => {
+router.get("/exportar-admins", async (req, res) => {
   try {
-    // Verifique se um ano de nascimento foi fornecido
-    const { anoNascimento } = req.query;
+    // Verifique se uma data de criação foi fornecida
+    const { datacriacao } = req.query;
     let filtro = {};
 
-    if (anoNascimento) {
-      // Converta o ano fornecido para uma data no formato ISO
-      const dataInicio = new Date(`${anoNascimento}-01-01T00:00:00.000Z`);
-      const dataFim = new Date(`${anoNascimento}-12-31T23:59:59.999Z`);
+    if (datacriacao) {
+      // Converta a data fornecida para uma data no formato ISO
+      const [dia, mes, ano] = datacriacao.split("/");
+      const dataInicio = new Date(ano, mes - 1, dia); // Mês em JavaScript é 0-indexed
+      const dataFim = new Date(ano, mes - 1, dia, 23, 59, 59, 999);
 
       // Filtre pelo intervalo de datas
       filtro = {
-        nascimento: {
+        datacriacao: {
           $gte: dataInicio,
           $lte: dataFim,
         },
@@ -29,22 +30,22 @@ router.get("/exportar-admins", eAdmin, async (req, res) => {
     }
 
     // Busque os admins no banco de dados usando o filtro
-    const admins = await Admin.find(filtro).sort({ nascimento: "desc" });
+    const admins = await Admin.find(filtro).sort({ datacriacao: "desc" });
 
     // Crie um novo workbook Excel
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Admins");
 
     // Adicione cabeçalhos
-    const cabecalhos = ["Email", "Data de Nascimento", "Pontuação"];
+    const cabecalhos = ["Data de Nascimento", "Pontuação", "Data de Criação"];
     sheet.addRow(cabecalhos);
 
     // Adicione dados
     admins.forEach((admin) => {
       const linha = [
-        admin.email,
         format(new Date(admin.nascimento), "dd/MM/yyyy", { locale: ptBR }),
         admin.pontuacao,
+        format(new Date(admin.datacriacao), "dd/MM/yyyy", { locale: ptBR }),
       ];
       sheet.addRow(linha);
     });
@@ -59,8 +60,8 @@ router.get("/exportar-admins", eAdmin, async (req, res) => {
 
     console.log("Exportação concluída com sucesso");
   } catch (err) {
-    console.error("Erro ao exportar admins:", err);
-    res.status(500).send("Erro ao exportar admins");
+    req.flash("error_msg", "coloque a data no formato aa/mm/aaaa");
+    res.redirect("/admin/");
   }
 });
 
